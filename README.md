@@ -1,4 +1,4 @@
-# Algorithm & AI Study Lab
+﻿# Algorithm & AI Study Lab
 
 ![status](https://img.shields.io/badge/status-active-brightgreen)
 ![study](https://img.shields.io/badge/study-algorithm%20%26%20AI-blue)
@@ -82,11 +82,13 @@ algorithm_ai_study/
 
 | Name | Main Topic | Role |
 |---|---|---|
-| PJH | - | Study setup |
-
+| 박중현 | - | 스터디원 |
+| 강재성 | - | 스터디원 |
+| 신정윤 | - | 스터디원 |
 ## References
 
 - [TheAlgorithms/Python](https://github.com/TheAlgorithms/Python)
 - [DataTalksClub Machine Learning Zoomcamp](https://github.com/DataTalksClub/machine-learning-zoomcamp)
 - [Microsoft Data Science for Beginners](https://github.com/microsoft/Data-Science-For-Beginners)
+
 
