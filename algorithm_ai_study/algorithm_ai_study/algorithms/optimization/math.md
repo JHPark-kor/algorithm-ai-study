@@ -1,0 +1,10 @@
+# Optimization Math
+
+## Concepts
+
+- 
+
+## Notes
+
+- 
+
