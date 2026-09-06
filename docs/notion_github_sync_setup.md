@@ -1,12 +1,12 @@
 # Notion → GitHub 논문 리뷰 자동화 설정
 
-이 자동화는 Notion에 올라온 논문 리뷰 카드에서 본문과 첨부 PDF를 읽어 GitHub에 정리합니다.
+이 자동화는 Notion에 올라온 논문 리뷰 카드에서 첨부 PDF를 읽어 GitHub에 정리합니다.
 
 ## 자동화가 하는 일
 
 1. Notion 논문 리뷰 카드 읽기
 2. 카드에 첨부된 PDF를 `algorithms/{algorithm}/02_paper_review/papers/`에 저장
-3. Notion 본문 또는 PDF 텍스트를 AI가 읽고 논문 개요 문체로 요약
+3. PDF에서 텍스트를 추출한 뒤 AI가 논문 개요 문체로 섹션별 요약
 4. `algorithms/{algorithm}/02_paper_review/README.md`에 자동 요약 섹션 추가
 5. `main`에 바로 넣지 않고 Pull Request 생성
 
@@ -32,8 +32,11 @@ Notion integration을 만든 뒤, 스터디 페이지 또는 과제 데이터베
 팀원 제출 규칙은 단순하게 유지합니다.
 
 - 논문 리뷰 카드는 `상태 = 완료`로 바꾸기
-- 보고서 본문은 Notion 카드에 작성하기
-- 최종 제출 PDF는 카드의 `파일` 속성 또는 카드 본문에 첨부하기
+- 최종 제출물은 PDF로 올리기
+- PDF는 카드의 `파일` 속성 또는 카드 본문에 첨부하기
+- PDF는 텍스트 선택이 가능한 형태로 저장하기
+
+스캔 이미지로만 된 PDF는 자동 요약이 실패할 수 있습니다. 이 경우 텍스트가 포함된 PDF로 다시 제출해야 합니다.
 
 ## GitHub에서 실행하는 방법
 
@@ -66,3 +69,4 @@ Notion integration을 만든 뒤, 스터디 페이지 또는 과제 데이터베
 | 알고리즘 | svm |
 
 현재 Notion 구조에 `주차`, `알고리즘` 속성이 없다면 처음에는 `notion_pages`에 카드 URL을 직접 넣는 방식이 가장 안전합니다.
+

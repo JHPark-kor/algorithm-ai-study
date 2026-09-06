@@ -3,9 +3,10 @@
 Sync Notion paper-review cards into the study GitHub repository.
 
 What it does:
-- reads Notion page text and attached PDF files
+- reads Notion paper-review cards and attached PDF files
 - downloads PDF files into algorithms/{algorithm}/02_paper_review/papers/
-- asks the OpenAI API to write a paper-abstract-style summary
+- extracts text from the submitted PDF files
+- asks the OpenAI API to write sectioned, paper-abstract-style summaries
 - updates algorithms/{algorithm}/02_paper_review/README.md inside a managed section
 
 Required environment variables:
@@ -399,17 +400,43 @@ def extract_pdf_text(pdf_path: Path) -> str:
         return ""
 
 
-def openai_summary(prompt_template: str, record: ReviewRecord, model: str) -> dict[str, Any]:
+def build_summary_source(record: ReviewRecord, allow_text_fallback: bool) -> tuple[str, str]:
+    pdf_texts: list[str] = []
+    for path in record.downloaded_pdfs:
+        text = extract_pdf_text(path).strip()
+        if text:
+            pdf_texts.append(f"--- PDF: {path.name} ---\n{text}")
+
+    if pdf_texts:
+        return "PDF 텍스트", "\n\n".join(pdf_texts)
+
+    if allow_text_fallback and record.text.strip():
+        return "Notion 본문", record.text.strip()
+
+    if record.downloaded_pdfs:
+        raise RuntimeError(
+            f"{record.page_title}: PDF file exists, but no selectable text could be extracted. "
+            "Ask the member to upload a text-based PDF instead of a scanned image PDF."
+        )
+
+    raise RuntimeError(
+        f"{record.page_title}: no PDF file found. Paper-review automation expects a submitted PDF."
+    )
+
+
+def openai_summary(
+    prompt_template: str,
+    record: ReviewRecord,
+    model: str,
+    allow_text_fallback: bool = False,
+) -> dict[str, Any]:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is required to summarize reviews")
 
-    source_text = record.text.strip()
-    if len(source_text) < 300:
-        pdf_texts = [extract_pdf_text(path) for path in record.downloaded_pdfs]
-        source_text = "\n\n".join(text for text in pdf_texts if text.strip()) or source_text
-
+    source_kind, source_text = build_summary_source(record, allow_text_fallback)
     source_text = source_text[:45000]
+    notion_memo = record.text.strip()[:6000] if record.text.strip() else "없음"
     user_prompt = f"""{prompt_template}
 
 메타데이터:
@@ -417,9 +444,13 @@ def openai_summary(prompt_template: str, record: ReviewRecord, model: str) -> di
 - 작성자: {record.author}
 - Notion URL: {record.notion_url}
 - 첨부 PDF: {", ".join(path.name for path in record.downloaded_pdfs) or "없음"}
+- 요약 기준 자료: {source_kind}
 
-Notion 본문:
+요약 기준 텍스트:
 {source_text}
+
+Notion 보조 메모:
+{notion_memo}
 """
 
     schema = {
@@ -496,7 +527,7 @@ def build_markdown_section(records: list[ReviewRecord], algorithm: str, week: st
     lines = [
         title,
         "",
-        "> 이 영역은 Notion 과제 내용을 바탕으로 자동 갱신됩니다. 자세한 원문은 Notion과 첨부 PDF를 확인합니다.",
+        "> 이 영역은 Notion에 제출된 PDF 텍스트를 바탕으로 자동 갱신됩니다. 자세한 원문은 첨부 PDF와 Notion 카드를 확인합니다.",
         "",
     ]
 
@@ -622,7 +653,12 @@ def run(args: argparse.Namespace) -> int:
             if downloaded:
                 record.downloaded_pdfs.append(downloaded)
 
-        record.summary = openai_summary(prompt, record, os.getenv("OPENAI_MODEL", DEFAULT_OPENAI_MODEL))
+        record.summary = openai_summary(
+            prompt,
+            record,
+            os.getenv("OPENAI_MODEL", DEFAULT_OPENAI_MODEL),
+            allow_text_fallback=args.allow_text_fallback,
+        )
 
     section = build_markdown_section(records, args.algorithm, args.week, readme_path.parent)
     update_readme(readme_path, section, args.week, category, args.dry_run)
@@ -665,6 +701,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--type-value", default=os.getenv("NOTION_TYPE_VALUE", "논문"))
     parser.add_argument("--week-prop", default=os.getenv("NOTION_WEEK_PROP", "주차"))
     parser.add_argument("--algorithm-prop", default=os.getenv("NOTION_ALGORITHM_PROP", "알고리즘"))
+    parser.add_argument(
+        "--allow-text-fallback",
+        action="store_true",
+        help="If a card has no readable PDF text, summarize the Notion body instead.",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Read and summarize, but do not write files.")
     return parser.parse_args()
 
@@ -675,3 +716,4 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)
         raise SystemExit(1)
+
