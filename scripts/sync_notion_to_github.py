@@ -163,6 +163,18 @@ def page_author(page: dict[str, Any]) -> str:
     return "unknown"
 
 
+def display_author_name(author: str) -> str:
+    aliases = {
+        "jaesungkang": "강재성",
+        "wjddbsl03": "신정윤",
+    }
+    normalized = re.sub(r"[^0-9a-zA-Z가-힣]+", "", author).lower()
+    for key, value in aliases.items():
+        if key in normalized:
+            return value
+    return author
+
+
 def page_url(page: dict[str, Any], page_id: str) -> str:
     return page.get("url") or f"https://www.notion.so/{page_id.replace('-', '')}"
 
@@ -523,43 +535,40 @@ def markdown_link(path: Path, base_dir: Path) -> str:
 
 
 def build_markdown_section(records: list[ReviewRecord], algorithm: str, week: str, readme_dir: Path) -> str:
-    title = f"## {week.upper()} {algorithm.upper()} 논문 리뷰 요약"
+    title = f"## {algorithm.upper()} {week.upper()} 논문 리뷰"
     lines = [
         title,
         "",
-        "> 이 영역은 Notion에 제출된 PDF 텍스트를 바탕으로 자동 갱신됩니다. 자세한 원문은 첨부 PDF와 Notion 카드를 확인합니다.",
-        "",
+        "| 작성자 | 논문 출처 | 키워드 | PDF | Notion |",
+        "|---|---|---|---|---|",
     ]
 
     for record in records:
         summary = record.summary
+        author = display_author_name(record.author)
         keywords = summary.get("keywords") or []
         pdf_links = ", ".join(markdown_link(path, readme_dir) for path in record.downloaded_pdfs) or "PDF 확인 필요"
-        lines.extend(
-            [
-                f"### {record.author}",
-                "",
-                f"- 논문 출처: {summary.get('paper_source', '확인 필요')}",
-                f"- 주요 키워드: {', '.join(keywords) if keywords else '확인 필요'}",
-                f"- PDF: {pdf_links}",
-                f"- Notion 원본: [원문 보기]({record.notion_url})",
-                "",
-                "#### 논문 개요",
-                "",
-                summary.get("overview", "확인 필요").strip(),
-                "",
-                "#### 데이터 및 방법",
-                "",
-                f"- 데이터: {summary.get('data', '확인 필요')}",
-                f"- 방법론: {summary.get('method', '확인 필요')}",
-                "",
-                "#### 주요 결과 및 프로젝트 연결",
-                "",
-                f"- 주요 결과: {summary.get('result', '확인 필요')}",
-                f"- 3주차 프로젝트 아이디어: {summary.get('project_idea', '확인 필요')}",
-                "",
-            ]
+        lines.append(
+            f"| {author} | {summary.get('paper_source', '확인 필요')} | "
+            f"{', '.join(keywords) if keywords else '확인 필요'} | {pdf_links} | "
+            f"[Notion]({record.notion_url}) |"
         )
+
+    lines.extend(["", "### 요약", ""])
+
+    for record in records:
+        summary = record.summary
+        author = display_author_name(record.author)
+        bullets = [
+            summary.get("overview", "확인 필요").strip(),
+            f"데이터: {summary.get('data', '확인 필요').strip()}",
+            f"방법: {summary.get('method', '확인 필요').strip()}",
+            f"결과: {summary.get('result', '확인 필요').strip()}",
+            f"프로젝트: {summary.get('project_idea', '확인 필요').strip()}",
+        ]
+        lines.extend([f"#### {author}", ""])
+        lines.extend(f"- {bullet}" for bullet in bullets if bullet)
+        lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -649,7 +658,7 @@ def run(args: argparse.Namespace) -> int:
     records = collect_records(args)
     for record in records:
         for notion_file in record.files:
-            downloaded = download_file(notion_file, papers_dir, args.week, record.author, args.dry_run)
+            downloaded = download_file(notion_file, papers_dir, args.week, display_author_name(record.author), args.dry_run)
             if downloaded:
                 record.downloaded_pdfs.append(downloaded)
 
@@ -666,7 +675,7 @@ def run(args: argparse.Namespace) -> int:
     print(f"Processed {len(records)} Notion paper review page(s).")
     print(f"README: {readme_path}")
     for record in records:
-        print(f"- {record.author}: {record.page_title}")
+        print(f"- {display_author_name(record.author)}: {record.page_title}")
         for pdf in record.downloaded_pdfs:
             print(f"  PDF: {pdf}")
 
