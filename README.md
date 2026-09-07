@@ -1,4 +1,4 @@
-# Algorithm & AI Study Lab
+# ML/AI 알고리즘 스터디
 
 머신러닝 알고리즘 스터디 기록 보관소입니다.
 
